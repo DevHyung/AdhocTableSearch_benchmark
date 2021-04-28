@@ -42,64 +42,6 @@ class QueryTableDataset(Dataset):
     def __getitem__(self, index):
         return self.data[index]
 
-    def slice_table(self, title, heading, datas, caption, table_tokenizer, query, rel):
-        table_rep_list = []
-
-        min_row = 10  # 최소 5개의 행은 있어야 함
-        max_table_nums = 10  # 테이블은 최대 10개로 나뉘어짐
-
-        # TODO: max_table_nums = 2, 5, 10 으로 바꿔보면서 테스트
-        if len(datas) <= min_row:  # 테이블이 최소행 보다 작은 경우
-            column_rep = Table(id=title,
-                               header=[Column(h.strip(), 'text') for h in heading],
-                               data=datas
-                               ).tokenize(table_tokenizer)
-            table_rep_list.append((rel, column_rep))
-        else:
-            row_n = max(min_row, ceil(len(datas) / max_table_nums))
-            slice_row_data = [datas[i * row_n:(i + 1) * row_n] for i in range((len(datas) + row_n - 1) // row_n)]
-            if str(rel) == 0:  # Negative
-                for rows in slice_row_data:
-                    column_rep = Table(id=title,
-                                       header=[Column(h.strip(), 'text') for h in heading],
-                                       data=rows
-                                       ).tokenize(table_tokenizer)
-                    table_rep_list.append((rel, column_rep))
-
-            else:  # Positive
-                query_tokens = [token.strip() for token in query.split(' ')]
-                is_always_postive = False
-                for token in query_tokens:
-                    if token in caption:
-                        is_always_postive = True
-                        break
-                if is_always_postive:  # caption에 포함되어있는 경우
-                    for rows in slice_row_data:
-                        column_rep = Table(id=title,
-                                           header=[Column(h.strip(), 'text') for h in heading],
-                                           data=rows
-                                           ).tokenize(table_tokenizer)
-                        table_rep_list.append((rel, column_rep))
-                else:
-                    for rows in slice_row_data:
-                        column_rep = Table(id=title,
-                                           header=[Column(h.strip(), 'text') for h in heading],
-                                           data=rows
-                                           ).tokenize(table_tokenizer)
-                        modify_rel = '0'
-                        # Row data를 하나의 string으로
-                        cell_string_sum = ''
-                        for row in rows:
-                            cell_string_sum += ' '.join(row)
-                        # Query tokens과 overlap
-                        for token in query_tokens:
-                            if token in cell_string_sum:
-                                modify_rel = '1'
-                                break
-                        table_rep_list.append((modify_rel, column_rep))
-
-        return table_rep_list
-
     def infer_column_type_from_row_values(self, numeric_idx_list, heading, body):
         heading_type_dict = {k: 'text' for k in heading}
         for n_idx in numeric_idx_list:
@@ -136,7 +78,7 @@ class QueryTableDataset(Dataset):
                 jsonStr = json.loads(line)
                 query = jsonStr['query']
                 qid = jsonStr['qid']
-                tid = table_json['docid']
+                tid = jsonStr['docid']
 
                 # Query Encode
                 if qid not in query_dict:
@@ -296,6 +238,7 @@ def encode_tables(table_json, is_slice, query, table_tokenizer):
                               ).tokenize(table_tokenizer))]
     return caption_rep, column_reps
 
+
 def slice_table( title, heading, datas, caption, table_tokenizer, query, rel):
     table_rep_list = []
 
@@ -354,6 +297,7 @@ def slice_table( title, heading, datas, caption, table_tokenizer, query, rel):
 
     return table_rep_list
 
+
 def query_table_collate_fn(batch):
     query, pos_column, pos_caption, neg_column, neg_caption = zip(*batch)
     input_ids, token_type_ids, attention_mask = [], [], []
@@ -388,31 +332,7 @@ class QueryTablePredictionDataset(Dataset):
 
     def __getitem__(self, index):
         return self.pair_ids[index]
-
-    def slice_table(self, title, heading, datas, table_tokenizer):
-        #  for prediction
-        #  따로 슬라이싱을해서 rel을 수정 할 필요가 없음
-        table_rep_list = []
-
-        min_row = 5  # 최소 5개의 행은 있어야 함
-        max_table_nums = 10  # 테이블은 최대 10개로 나뉘어짐
-
-        if len(datas) <= min_row:
-            column_rep = Table(id=title,
-                               header=[Column(h.strip(), 'text') for h in heading],
-                               data=datas
-                               ).tokenize(table_tokenizer)
-            table_rep_list.append(column_rep)
-        else:
-            row_n = max(min_row, ceil(len(datas) / max_table_nums))
-            slice_row_data = [datas[i * row_n:(i + 1) * row_n] for i in range((len(datas) + row_n - 1) // row_n)]
-            for rows in slice_row_data:
-                column_rep = Table(id=title,
-                                   header=[Column(h.strip(), 'text') for h in heading],
-                                   data=rows
-                                   ).tokenize(table_tokenizer)
-                table_rep_list.append(column_rep)
-        return table_rep_list
+    
 
     def infer_column_type_from_row_values(self, numeric_idx_list, heading, body):
         heading_type_dict = {k: 'text' for k in heading}

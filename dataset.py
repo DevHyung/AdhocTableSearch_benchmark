@@ -42,18 +42,6 @@ class QueryTableDataset(Dataset):
     def __getitem__(self, index):
         return self.data[index]
 
-    def infer_column_type_from_row_values(self, numeric_idx_list, heading, body):
-        heading_type_dict = {k: 'text' for k in heading}
-        for n_idx in numeric_idx_list:
-            heading_type_dict[heading[n_idx]] = 'real'
-            for i, rows in enumerate(body):
-                try:
-                    float(rows[n_idx].strip().replace('−', '-').replace(',', '').replace('–', '-'))
-                except:
-                    heading_type_dict[heading[n_idx]] = 'text'
-                    break
-        return heading_type_dict
-
     def prepare(self, data_dir, data_type, query_tokenizer, table_tokenizer, max_query_length):
         if self._check_exists():
             return
@@ -118,6 +106,20 @@ class QueryTableDataset(Dataset):
 
     def _check_exists(self):
         return os.path.exists(os.path.join(self.processed_folder, self.ids_file))
+
+
+def infer_column_type_from_row_values(numeric_idx_list, heading, body):
+    heading_type_dict = {k: 'text' for k in heading}
+    for n_idx in numeric_idx_list:
+        heading_type_dict[heading[n_idx]] = 'real'
+        for i, rows in enumerate(body):
+            try:
+                float(rows[n_idx].strip().replace('−', '-').replace(',', '').replace('–', '-'))
+            except:
+                heading_type_dict[heading[n_idx]] = 'text'
+                break
+    return heading_type_dict
+
 
 def encode_tables(table_json, is_slice, query, table_tokenizer):
     rel = table_json['rel']
@@ -217,9 +219,6 @@ def encode_tables(table_json, is_slice, query, table_tokenizer):
             for rows in body:
                 row_list.append([re.sub(html_pattern, '', row).strip() for row in rows])
             body = row_list
-
-    # Infer column type
-    # heading_type_dict = self.infer_column_type_from_row_values(numericIdx, heading, body)
 
     # TODO: Context부분을 다양하게 주는부분, 비교실험 해볼부분임
     # TODO: Special Token을 추가 안해두 되는지 비교실험
@@ -332,19 +331,6 @@ class QueryTablePredictionDataset(Dataset):
 
     def __getitem__(self, index):
         return self.pair_ids[index]
-    
-
-    def infer_column_type_from_row_values(self, numeric_idx_list, heading, body):
-        heading_type_dict = {k: 'text' for k in heading}
-        for n_idx in numeric_idx_list:
-            heading_type_dict[heading[n_idx]] = 'real'
-            for i, rows in enumerate(body):
-                try:
-                    float(rows[n_idx].strip().replace('−', '-').replace(',', '').replace('–', '-'))
-                except:
-                    heading_type_dict[heading[n_idx]] = 'text'
-                    break
-        return heading_type_dict
 
     def prepare(self, data_dir, data_type, query_tokenizer, table_tokenizer, max_query_length):
         if self._check_exists():

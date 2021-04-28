@@ -1,0 +1,14 @@
+#index files
+processed/
+
+#models
+tabert_base_k3/
+tabert_large_k3/
+output_*/
+lightning_logs/
+SIGIR_EX_*/
+
+#etc
+__pycache__/
+
+
